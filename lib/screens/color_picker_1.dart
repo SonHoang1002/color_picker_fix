@@ -1,42 +1,200 @@
 import 'package:color_picker_fix/commons/colors.dart';
+import 'package:color_picker_fix/commons/constant.dart';
+import 'package:color_picker_fix/helpers/check_utf16.dart';
 import 'package:color_picker_fix/screens/bodies/body_hsb.dart';
 import 'package:color_picker_fix/screens/bodies/body_palette.dart';
 import 'package:color_picker_fix/screens/bodies/body_picker.dart';
 import 'package:color_picker_fix/screens/bodies/body_saved.dart';
+import 'package:color_picker_fix/widgets/w_custom_keyboard.dart';
 import 'package:color_picker_fix/widgets/w_text_content.dart';
 import 'package:custom_sliding_segmented_control/custom_sliding_segmented_control.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-class ColorPicker1 extends StatefulWidget {
-  const ColorPicker1({super.key});
+class ColorPicker extends StatefulWidget {
+  final Color currentColor;
 
+  /// call on click to done button
+  final Function(Color color) onDone;
+
+  /// call on click to save button
+  final Function(Color color)? onColorSave;
+
+  /// color list to render for save tab
+  final List<Color> listColorSaved;
+
+  /// change theme of input, button, segment controls,
+  final Color? topicColor;
+
+  // /// used for text of input, title
+  // final Color? textColor;
+
+  const ColorPicker({
+    super.key,
+    required this.currentColor,
+    required this.onDone,
+    required this.listColorSaved,
+    this.onColorSave,
+    this.topicColor = colorGrey,
+    // this.textColor
+  });
   @override
-  State<ColorPicker1> createState() => _ColorPicker1State();
+  State<ColorPicker> createState() => _ColorPickerState();
 }
 
-class _ColorPicker1State extends State<ColorPicker1> {
+class _ColorPickerState extends State<ColorPicker> {
   int _indexSegment = 0;
   late Size _size;
+  late Color _selectedColor;
+  final TextEditingController _hexController = TextEditingController(text: "");
+  bool? _showKeyBoard = false;
+  void _onColorChange(Color color) {
+    _unFocusKeyBoard();
+    setState(() {
+      _selectedColor = color;
+      _hexController.text = _colorToHexString(_selectedColor);
+    });
+  }
+
+  String _colorToHexString(Color color) {
+    final newHexString = color.value.toRadixString(16).toUpperCase();
+    final result = newHexString.substring(2, newHexString.length);
+    return '#$result';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedColor = widget.currentColor;
+    _hexController.text = _colorToHexString(_selectedColor);
+  }
+
   @override
   Widget build(BuildContext context) {
     _size = MediaQuery.of(context).size;
-    return Center(
+    return Align(
+      alignment: Alignment.center,
+      child: Stack(
+        alignment: Alignment.topCenter,
+        children: [
+          Container(
+            height: 480,
+            width: _size.width * 0.95,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+                color: colorRed.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8)),
+            child: Column(
+              children: [
+                _buildTitleWidget(),
+                const SizedBox(height: 20),
+                _segmentedControl(),
+                _buildBody()
+              ],
+            ),
+          ),
+          _showKeyBoard == true ? _buildKeyBoard() : const SizedBox()
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKeyBoard() {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _showKeyBoard = null;
+        });
+      },
       child: Container(
-        height: _size.height * 0.75,
-        width: _size.width * 0.95,
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-            color: colorRed.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8)),
+        color: transparent,
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildTitleWidget(),
-            const SizedBox(height: 20),
-            _segmentedControl(),
-            _buildBody()
+            const SizedBox(),
+            CustomKeyboardWidget(
+              onEnter: (value) {
+                if (_hexController.text.trim().length > 6) {
+                  return;
+                }
+                _insertText(value);
+                setState(() {});
+              },
+              onBackSpace: () {
+                if (_hexController.selection.baseOffset == 1) {
+                  return;
+                }
+                _backspace();
+                setState(() {});
+              },
+              onDone: () {
+                setState(() {
+                  _showKeyBoard = null;
+                });
+              },
+            )
           ],
         ),
       ),
+    );
+  }
+
+  void _unFocusKeyBoard() {
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  void _insertText(String myText) {
+    final text = _hexController.text;
+    final textSelection = _hexController.selection;
+    final newText = text.replaceRange(
+      textSelection.start,
+      textSelection.end,
+      myText,
+    );
+    final myTextLength = myText.length;
+    _hexController.text = newText;
+    _hexController.selection = textSelection.copyWith(
+      baseOffset: textSelection.start + myTextLength,
+      extentOffset: textSelection.start + myTextLength,
+    );
+  }
+
+  void _backspace() {
+    final text = _hexController.text;
+    final textSelection = _hexController.selection;
+    final selectionLength = textSelection.end - textSelection.start;
+    // There is a selection.
+    if (selectionLength > 0) {
+      final newText = text.replaceRange(
+        textSelection.start,
+        textSelection.end,
+        '',
+      );
+      _hexController.text = newText;
+      _hexController.selection = textSelection.copyWith(
+        baseOffset: textSelection.start,
+        extentOffset: textSelection.start,
+      );
+      return;
+    }
+    // The cursor is at the beginning.
+    if (textSelection.start <= 0) {
+      return;
+    }
+    // Delete the previous character
+    final previousCodeUnit = text.codeUnitAt(textSelection.start - 1);
+    final offset = isUtf16Surrogate(previousCodeUnit) ? 2 : 1;
+    final newStart = textSelection.start - offset;
+    final newEnd = textSelection.start;
+    final newText = text.replaceRange(
+      newStart,
+      newEnd,
+      '',
+    );
+    _hexController.text = newText;
+    _hexController.selection = textSelection.copyWith(
+      baseOffset: newStart,
+      extentOffset: newStart,
     );
   }
 
@@ -50,30 +208,91 @@ class _ColorPicker1State extends State<ColorPicker1> {
             children: [
               // preview value hex string color
               Container(
-                height: 30,
-                width: 70,
-                decoration: BoxDecoration(
-                    color: colorGrey, borderRadius: BorderRadius.circular(8)),
-                child: Center(child: WTextContent(value: "#D87E37")),
-              ),
+                  height: 30,
+                  width: 80,
+                  decoration: BoxDecoration(
+                      color: widget.topicColor,
+                      borderRadius: BorderRadius.circular(6.5)),
+                  child: TextField(
+                    onTap: () {
+                      setState(() {
+                        _showKeyBoard = true;
+                      });
+                      // show keyboard custom here
+                      // pushCustomVerticalMaterialPageRoute(
+                      //     context,
+                      //     CustomKeyboardScreen(
+                      //         controller: _hexController,
+                      //         onEnter: (value) {
+                      //           if (_hexController.text.trim().length > 6) {
+                      //             return;
+                      //           }
+                      //           _insertText(value);
+                      //           setState(() {});
+                      //         },
+                      //         onBackSpace: () {
+                      //           if (_hexController.selection.baseOffset == 1) {
+                      //             return;
+                      //           }
+                      //           _backspace();
+                      //           setState(() {});
+                      //         }));
+                    },
+                    onChanged: (value) {},
+                    maxLength: 7,
+                    keyboardType: TextInputType.none,
+                    controller: _hexController,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w700),
+                    decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        counterText: "",
+                        contentPadding: EdgeInsets.only(bottom: 17)),
+                  )),
+
               const SizedBox(
-                width: 10,
+                width: 5,
               ),
               // save button
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                    color: colorGrey, borderRadius: BorderRadius.circular(20)),
+              GestureDetector(
+                onTap: () {
+                  _unFocusKeyBoard();
+                  widget.onColorSave != null
+                      ? widget.onColorSave!(_selectedColor)
+                      : null;
+                },
+                child: Container(
+                  width: 30,
+                  height: 30,
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                      color: widget.topicColor,
+                      borderRadius: BorderRadius.circular(6.5)),
+                  child: Image.asset(
+                    "${PATH_PREFFIX_ICON}icon_save_inactive.png",
+                  ),
+                ),
               ),
             ],
           ),
           WTextContent(value: "Colors"),
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-                color: colorGrey, borderRadius: BorderRadius.circular(20)),
+          GestureDetector(
+            onTap: () {
+              _unFocusKeyBoard();
+              widget.onDone(_selectedColor);
+            },
+            child: Container(
+              width: 30,
+              height: 30,
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                  color: widget.topicColor,
+                  borderRadius: BorderRadius.circular(20)),
+              child: Image.asset(
+                "${PATH_PREFFIX_ICON}icon_done.png",
+              ),
+            ),
           ),
         ],
       ),
@@ -125,7 +344,7 @@ class _ColorPicker1State extends State<ColorPicker1> {
           )
         },
         decoration: BoxDecoration(
-          color: colorGrey,
+          color: widget.topicColor,
           // color: Color.fromRGBO(0, 0, 0, 0.1),
           borderRadius: BorderRadius.circular(36),
         ),
@@ -135,6 +354,7 @@ class _ColorPicker1State extends State<ColorPicker1> {
           color: colorWhite,
         ),
         onValueChanged: (int value) {
+          _unFocusKeyBoard();
           setState(() {
             _indexSegment = value;
           });
@@ -146,13 +366,26 @@ class _ColorPicker1State extends State<ColorPicker1> {
   Widget _buildBody() {
     switch (_indexSegment) {
       case 0:
-        return const BodyPalette();
+        return BodyPalette(
+          currentColor: _selectedColor,
+          onColorChange: _onColorChange,
+        );
       case 1:
-        return const BodyHSB();
+        return BodyHSB(
+          currentColor: _selectedColor,
+          onColorChange: _onColorChange,
+        );
       case 2:
-        return const BodyPicker();
+        return BodyPicker(
+          currentColor: _selectedColor,
+          onColorChange: _onColorChange,
+        );
       case 3:
-        return const BodySaved();
+        return BodySaved(
+          currentColor: _selectedColor,
+          listColorSaved: widget.listColorSaved,
+          onColorChange: _onColorChange,
+        );
       default:
         return const SizedBox();
     }

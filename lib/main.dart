@@ -1,5 +1,9 @@
 import 'package:color_picker_fix/commons/colors.dart';
+import 'package:color_picker_fix/commons/constant.dart';
 import 'package:color_picker_fix/screens/color_picker_1.dart';
+import 'package:color_picker_fix/tests/custom_keyboard.dart';
+import 'package:color_picker_fix/tests/custom_keyboard_1.dart';
+import 'package:color_picker_fix/widgets/w_custom_keyboard.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -25,7 +29,6 @@ class MyApp extends StatelessWidget {
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
-
   final String title;
 
   @override
@@ -33,8 +36,6 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  Color _pickedColor = colorBlue;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -42,8 +43,37 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
       ),
-      body: ColorPicker1()
-     
+      body: Container(color: colorBlack),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          showModalBottomSheet(
+              context: context,
+              builder: (ctx) {
+                return ColorPicker(
+                  currentColor: colorWhite,
+                  onDone: (color) {
+                    // set color
+                  },
+                  listColorSaved: ALL_COLORS,
+                  onColorSave: (Color color) {},
+                );
+              });
+        },
+      ),
     );
+    // CustomKeyboardWidget(
+    //   onEnter: (value) {},
+    //   onBackSpace: () {},
+    //   onDone: () {},
+    // )
+    // KeyboardDemo()
+    // ColorPicker(
+    //   currentColor: colorWhite,
+    //   onDone: (color) {
+    //     // set color
+    //   },
+    //   listColorSaved: ALL_COLORS,
+    //   onColorSave: (Color color) {},
+    // )
   }
 }

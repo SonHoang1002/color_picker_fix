@@ -3,7 +3,14 @@ import 'package:color_picker_fix/commons/constant.dart';
 import 'package:flutter/material.dart';
 
 class BodySaved extends StatefulWidget {
-  const BodySaved({super.key});
+  final Color currentColor;
+  final Function(Color color) onColorChange;
+  final List<Color> listColorSaved;
+  const BodySaved(
+      {super.key,
+      required this.currentColor,
+      required this.onColorChange,
+      required this.listColorSaved});
 
   @override
   State<BodySaved> createState() => _BodySavedState();
@@ -15,7 +22,7 @@ class _BodySavedState extends State<BodySaved> {
   @override
   void initState() {
     super.initState();
-    _selectedColor = ALL_COLORS[0];
+    _selectedColor = widget.currentColor;
   }
 
   @override
@@ -25,16 +32,17 @@ class _BodySavedState extends State<BodySaved> {
   }
 
   Widget _buildSuggestColor() {
-    return SizedBox(
-      // width: _size.width * 0.8,
+    return Container(
+      margin: const EdgeInsets.only(top: 20),
       child: Wrap(
-          children: ALL_COLORS
+          children: widget.listColorSaved
               .map(
                 (e) => GestureDetector(
                   onTap: () {
                     setState(() {
                       _selectedColor = e;
                     });
+                    widget.onColorChange(_selectedColor);
                   },
                   child: Stack(
                     alignment: Alignment.center,
@@ -42,8 +50,8 @@ class _BodySavedState extends State<BodySaved> {
                       Container(
                         height: 40,
                         width: 40,
-                        margin: const EdgeInsets.all(5), 
-                        decoration: BoxDecoration( 
+                        margin: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
                                 width: 3,
@@ -57,9 +65,9 @@ class _BodySavedState extends State<BodySaved> {
                         margin: const EdgeInsets.all(5),
                         padding: const EdgeInsets.all(5),
                         decoration: BoxDecoration(
-                            color: e,
-                            borderRadius: BorderRadius.circular(15),
-                            ),
+                          color: e,
+                          borderRadius: BorderRadius.circular(15),
+                        ),
                       ),
                     ],
                   ),
