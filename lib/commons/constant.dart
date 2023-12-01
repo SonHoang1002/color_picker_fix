@@ -1,3 +1,5 @@
+import 'dart:ffi';
+
 import 'package:flutter/material.dart';
 
 final List<Color> COLOR_SLIDERS = [
@@ -179,9 +181,8 @@ const List<Color> COLORS_PALETTE = [
   Color(0xFFDEEDD5),
 ];
 
-const String PATH_PREFFIX_ICON = 'assets/icons/';
-
+const String PATH_PREFFIX_ICON = 'lib/assets/icons/';
 const List<String> KEYBOARD_ROW_1 = ["7", "8", "9", "A", "B", "C"];
 const List<String> KEYBOARD_ROW_2 = ["4", "5", "6", "D", "E", "F"];
-const List<String> KEYBOARD_ROW_31 = ["1", "2", "3"];
-const List<String> KEYBOARD_ROW_32 = ["0"];
+const List<String> KEYBOARD_ROW_31 = ["1", "2", "3"]; 
+const double HEIGHT_OF_KEYBOARD = 300;

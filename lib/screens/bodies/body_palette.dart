@@ -17,7 +17,7 @@ class BodyPalette extends StatefulWidget {
 
 class _BodyPaletteState extends State<BodyPalette> {
   late Color _selectedColor;
-  final double _sizeOfColorItem = 30;
+  late double _sizeOfColorItem = 30;
   final int _rowOfColorBoard = 10;
   final int _columnOfColorBoard = 12;
 
@@ -26,16 +26,18 @@ class _BodyPaletteState extends State<BodyPalette> {
   // renderBox
   late RenderBox _renderBoxColorBoard;
   bool? _isInsideColorBoard;
+  late Size _size;
+  late double _widthColorBody;
   @override
   void initState() {
     super.initState();
-    _selectedColor = widget.currentColor;
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
       _renderBoxColorBoard =
           _keyColorBoard.currentContext?.findRenderObject() as RenderBox;
       setState(() {});
     });
   }
+
 
   void _disableInside() {
     setState(() {
@@ -100,6 +102,10 @@ class _BodyPaletteState extends State<BodyPalette> {
 
   @override
   Widget build(BuildContext context) {
+    _size = MediaQuery.sizeOf(context);
+    _widthColorBody = _size.width * 0.85;
+    _sizeOfColorItem = _widthColorBody / 12;
+    _selectedColor = widget.currentColor;
     return Container(
       margin: const EdgeInsets.only(top: 30),
       child: GestureDetector(
@@ -159,13 +165,13 @@ class _BodyPaletteState extends State<BodyPalette> {
     if (index == 0) {
       return const BorderRadius.only(topLeft: Radius.circular(10));
     }
-    if (index == 11) {
+    if (index == _columnOfColorBoard - 1) {
       return const BorderRadius.only(topRight: Radius.circular(10));
     }
-    if (index == 108) {
+    if (index == _columnOfColorBoard * (_rowOfColorBoard - 1)) {
       return const BorderRadius.only(bottomLeft: Radius.circular(10));
     }
-    if (index == 119) {
+    if (index == _columnOfColorBoard * _rowOfColorBoard - 1) {
       return const BorderRadius.only(bottomRight: Radius.circular(10));
     }
     return null;

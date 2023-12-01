@@ -1,15 +1,16 @@
 import 'package:color_picker_fix/commons/colors.dart';
-import 'package:color_picker_fix/commons/constant.dart';
 import 'package:color_picker_fix/helpers/check_utf16.dart';
+import 'package:color_picker_fix/helpers/convert.dart';
+import 'package:color_picker_fix/helpers/navigator_route.dart';
 import 'package:color_picker_fix/screens/bodies/body_hsb.dart';
 import 'package:color_picker_fix/screens/bodies/body_palette.dart';
 import 'package:color_picker_fix/screens/bodies/body_picker.dart';
 import 'package:color_picker_fix/screens/bodies/body_saved.dart';
-import 'package:color_picker_fix/widgets/w_custom_keyboard.dart';
+import 'package:color_picker_fix/widgets/w_keyboard.dart';
 import 'package:color_picker_fix/widgets/w_text_content.dart';
 import 'package:custom_sliding_segmented_control/custom_sliding_segmented_control.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class ColorPicker extends StatefulWidget {
   final Color currentColor;
@@ -26,115 +27,149 @@ class ColorPicker extends StatefulWidget {
   /// change theme of input, button, segment controls,
   final Color? topicColor;
 
-  // /// used for text of input, title
-  // final Color? textColor;
+  final Color? colorIconSave;
 
-  const ColorPicker({
-    super.key,
-    required this.currentColor,
-    required this.onDone,
-    required this.listColorSaved,
-    this.onColorSave,
-    this.topicColor = colorGrey,
-    // this.textColor
-  });
+  final Color? colorIconCheck;
+
+  final Color? barrierColor;
+
+  const ColorPicker(
+      {super.key,
+      required this.currentColor,
+      required this.onDone,
+      required this.listColorSaved,
+      this.onColorSave,
+      this.topicColor = colorGrey,
+      this.colorIconSave,
+      this.colorIconCheck,
+      this.barrierColor});
   @override
   State<ColorPicker> createState() => _ColorPickerState();
 }
 
 class _ColorPickerState extends State<ColorPicker> {
+  final Color _segmentInactiveTextColor = const Color.fromRGBO(0, 0, 0, 0.5);
+  final TextEditingController _hexController = TextEditingController(text: "");
   int _indexSegment = 0;
   late Size _size;
   late Color _selectedColor;
-  final TextEditingController _hexController = TextEditingController(text: "");
   bool? _showKeyBoard = false;
+  bool _isSaved = false;
+  late double _widthColorBody;
+  // disable widget
+  final GlobalKey _keyTextField = GlobalKey(debugLabel: "_keyTextField");
+  Offset? _offsetDisable;
+
   void _onColorChange(Color color) {
     _unFocusKeyBoard();
     setState(() {
       _selectedColor = color;
-      _hexController.text = _colorToHexString(_selectedColor);
+      _hexController.text = convertColorToHexString(_selectedColor);
     });
-  }
-
-  String _colorToHexString(Color color) {
-    final newHexString = color.value.toRadixString(16).toUpperCase();
-    final result = newHexString.substring(2, newHexString.length);
-    return '#$result';
   }
 
   @override
   void initState() {
     super.initState();
     _selectedColor = widget.currentColor;
-    _hexController.text = _colorToHexString(_selectedColor);
+    _hexController.text = convertColorToHexString(_selectedColor);
   }
 
   @override
   Widget build(BuildContext context) {
     _size = MediaQuery.of(context).size;
-    return Align(
+    _widthColorBody = _size.width * 0.85;
+    _isSaved = widget.listColorSaved.contains(_selectedColor);
+    return Container(
       alignment: Alignment.center,
+      color: widget.barrierColor,
       child: Stack(
-        alignment: Alignment.topCenter,
+        alignment: Alignment.center,
         children: [
           Container(
             height: 480,
-            width: _size.width * 0.95,
-            padding: const EdgeInsets.all(10),
+            width: _size.width * 0.97,
             decoration: BoxDecoration(
-                color: colorRed.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8)),
-            child: Column(
+                color: const Color.fromRGBO(249, 249, 249, 1),
+                borderRadius: BorderRadius.circular(20)),
+            padding: const EdgeInsets.only(top: 20),
+            child: Stack(
               children: [
-                _buildTitleWidget(),
-                const SizedBox(height: 20),
-                _segmentedControl(),
-                _buildBody()
+                Column(
+                  children: [
+                    _buildTitleWidget(),
+                    const SizedBox(height: 20),
+                    _segmentedControl(),
+                    _buildBody(),
+                  ],
+                ),
               ],
             ),
           ),
-          _showKeyBoard == true ? _buildKeyBoard() : const SizedBox()
+          if (_showKeyBoard == true)
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _showKeyBoard = null;
+                });
+              },
+            ),
+          Container(
+              height: 480,
+              width: _size.width * 0.97,
+              padding: const EdgeInsets.only(top: 20),
+              child: _buildTextFieldAndButtons()),
+          if (_showKeyBoard == true) _buildKeyBoard(),
         ],
       ),
     );
   }
 
+  void _disableKeyBoard() {
+    _showKeyBoard = null;
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() {});
+  }
+
   Widget _buildKeyBoard() {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _showKeyBoard = null;
-        });
-      },
-      child: Container(
-        color: transparent,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const SizedBox(),
-            CustomKeyboardWidget(
-              onEnter: (value) {
-                if (_hexController.text.trim().length > 6) {
-                  return;
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          CustomKeyboardWidget(
+            onEnter: (value) {
+              if (_hexController.text.trim().length > 6) {
+                _selectedColor =
+                    convertHexStringToColor(_hexController.text.trim());
+                _disableKeyBoard();
+                return;
+              }
+              _insertText(value);
+              setState(() {});
+            },
+            onBackSpace: () {
+              if (_hexController.selection.baseOffset == 1) {
+                return;
+              }
+              _backspace();
+              setState(() {});
+            },
+            onDone: () {
+              final lengthOfHexController = _hexController.text.trim().length;
+              if (lengthOfHexController < 7) {
+                for (int i = 0; i < 7 - lengthOfHexController; i++) {
+                  _insertText("0");
                 }
-                _insertText(value);
-                setState(() {});
-              },
-              onBackSpace: () {
-                if (_hexController.selection.baseOffset == 1) {
-                  return;
-                }
-                _backspace();
-                setState(() {});
-              },
-              onDone: () {
-                setState(() {
-                  _showKeyBoard = null;
-                });
-              },
-            )
-          ],
-        ),
+              }
+              String content = _hexController.text.trim();
+              final hex6String = content.substring(1, content.length);
+              _selectedColor = convertHexStringToColor(hex6String);
+              _disableKeyBoard();
+            },
+          ),
+        ],
       ),
     );
   }
@@ -199,8 +234,26 @@ class _ColorPickerState extends State<ColorPicker> {
   }
 
   Widget _buildTitleWidget() {
-    return SizedBox(
-      height: 30,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 15),
+      child: SizedBox(
+        height: 30,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const SizedBox(),
+            WTextContent(value: "Colors"),
+            const SizedBox()
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextFieldAndButtons() {
+    return Align(
+      alignment: Alignment.topCenter,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -208,6 +261,7 @@ class _ColorPickerState extends State<ColorPicker> {
             children: [
               // preview value hex string color
               Container(
+                  key: _keyTextField,
                   height: 30,
                   width: 80,
                   decoration: BoxDecoration(
@@ -217,26 +271,11 @@ class _ColorPickerState extends State<ColorPicker> {
                     onTap: () {
                       setState(() {
                         _showKeyBoard = true;
+                        final renderBoxTextField = _keyTextField.currentContext
+                            ?.findRenderObject() as RenderBox;
+                        _offsetDisable = renderBoxTextField
+                            .localToGlobal(const Offset(0, 0));
                       });
-                      // show keyboard custom here
-                      // pushCustomVerticalMaterialPageRoute(
-                      //     context,
-                      //     CustomKeyboardScreen(
-                      //         controller: _hexController,
-                      //         onEnter: (value) {
-                      //           if (_hexController.text.trim().length > 6) {
-                      //             return;
-                      //           }
-                      //           _insertText(value);
-                      //           setState(() {});
-                      //         },
-                      //         onBackSpace: () {
-                      //           if (_hexController.selection.baseOffset == 1) {
-                      //             return;
-                      //           }
-                      //           _backspace();
-                      //           setState(() {});
-                      //         }));
                     },
                     onChanged: (value) {},
                     maxLength: 7,
@@ -257,42 +296,53 @@ class _ColorPickerState extends State<ColorPicker> {
               // save button
               GestureDetector(
                 onTap: () {
-                  _unFocusKeyBoard();
+                  setState(() {
+                    _showKeyBoard = null;
+                    _unFocusKeyBoard();
+                  });
                   widget.onColorSave != null
                       ? widget.onColorSave!(_selectedColor)
                       : null;
                 },
                 child: Container(
-                  width: 30,
-                  height: 30,
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                      color: widget.topicColor,
-                      borderRadius: BorderRadius.circular(6.5)),
-                  child: Image.asset(
-                    "${PATH_PREFFIX_ICON}icon_save_inactive.png",
-                  ),
-                ),
+                    width: 30,
+                    height: 30,
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                        color: widget.topicColor,
+                        borderRadius: BorderRadius.circular(6.5)),
+                    child: Icon(
+                      _isSaved
+                          ? FontAwesomeIcons.solidBookmark
+                          : FontAwesomeIcons.bookmark,
+                      size: 15,
+                      color: widget.colorIconSave ?? colorBlack,
+                    )
+                    ),
               ),
             ],
           ),
-          WTextContent(value: "Colors"),
           GestureDetector(
             onTap: () {
-              _unFocusKeyBoard();
+              setState(() {
+                _showKeyBoard = null;
+                _unFocusKeyBoard();
+              });
               widget.onDone(_selectedColor);
             },
             child: Container(
-              width: 30,
-              height: 30,
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                  color: widget.topicColor,
-                  borderRadius: BorderRadius.circular(20)),
-              child: Image.asset(
-                "${PATH_PREFFIX_ICON}icon_done.png",
-              ),
-            ),
+                width: 30,
+                height: 30,
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                    color: widget.topicColor,
+                    borderRadius: BorderRadius.circular(20)),
+                child: Icon(
+                  FontAwesomeIcons.check,
+                  size: 15,
+                  color: widget.colorIconSave ?? colorBlack,
+                )
+                ),
           ),
         ],
       ),
@@ -301,7 +351,8 @@ class _ColorPickerState extends State<ColorPicker> {
 
   Widget _segmentedControl() {
     return SizedBox(
-      width: _size.width * 0.9,
+      width: _widthColorBody,
+      height: 36,
       child: CustomSlidingSegmentedControl<int>(
         isStretch: true,
         innerPadding: const EdgeInsets.all(2),
@@ -310,7 +361,8 @@ class _ColorPickerState extends State<ColorPicker> {
             "Palette",
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: _indexSegment == 0 ? colorBlue : colorBlack,
+              color:
+                  _indexSegment == 0 ? colorBlack : _segmentInactiveTextColor,
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
@@ -319,7 +371,8 @@ class _ColorPickerState extends State<ColorPicker> {
             "HSB",
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: _indexSegment == 1 ? colorBlue : colorBlack,
+              color:
+                  _indexSegment == 1 ? colorBlack : _segmentInactiveTextColor,
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
@@ -328,7 +381,8 @@ class _ColorPickerState extends State<ColorPicker> {
             "Picker",
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: _indexSegment == 2 ? colorBlue : colorBlack,
+              color:
+                  _indexSegment == 2 ? colorBlack : _segmentInactiveTextColor,
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
@@ -337,7 +391,8 @@ class _ColorPickerState extends State<ColorPicker> {
             "Saved",
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: _indexSegment == 3 ? colorBlue : colorBlack,
+              color:
+                  _indexSegment == 3 ? colorBlack : _segmentInactiveTextColor,
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
@@ -345,12 +400,11 @@ class _ColorPickerState extends State<ColorPicker> {
         },
         decoration: BoxDecoration(
           color: widget.topicColor,
-          // color: Color.fromRGBO(0, 0, 0, 0.1),
           borderRadius: BorderRadius.circular(36),
         ),
-        padding: 20,
+        padding: 10,
         thumbDecoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(36),
           color: colorWhite,
         ),
         onValueChanged: (int value) {

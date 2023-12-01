@@ -1,9 +1,7 @@
 import 'package:color_picker_fix/commons/colors.dart';
 import 'package:color_picker_fix/commons/constant.dart';
+import 'package:color_picker_fix/helpers/navigator_route.dart';
 import 'package:color_picker_fix/screens/color_picker_1.dart';
-import 'package:color_picker_fix/tests/custom_keyboard.dart';
-import 'package:color_picker_fix/tests/custom_keyboard_1.dart';
-import 'package:color_picker_fix/widgets/w_custom_keyboard.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -21,6 +19,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
@@ -36,6 +35,16 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  late Color _currentColor;
+  bool _isExpanded = false;
+  double? _colorPickerHeight;
+  final GlobalKey _keyColorPicker = GlobalKey(debugLabel: "_keyColorPicker");
+  @override
+  void initState() {
+    super.initState();
+    _currentColor = const Color(0xFF5E2FEB);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -43,37 +52,31 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
       ),
-      body: Container(color: colorBlack),
+      body: Container(color: _currentColor),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           showModalBottomSheet(
               context: context,
               builder: (ctx) {
-                return ColorPicker(
-                  currentColor: colorWhite,
-                  onDone: (color) {
-                    // set color
-                  },
-                  listColorSaved: ALL_COLORS,
-                  onColorSave: (Color color) {},
-                );
-              });
+                return StatefulBuilder(builder: (context, setStatefull) {
+                  return ColorPicker(
+                    key: _keyColorPicker,
+                    topicColor: const Color.fromRGBO(0, 0, 0, 0.05),
+                    currentColor: _currentColor,
+                    onDone: (color) {
+                      setState(() {
+                        _currentColor = color;
+                      });
+                      popNavigator(context);
+                    },
+                    listColorSaved: ALL_COLORS,
+                    onColorSave: (Color color) {},
+                  );
+                });
+              }, 
+              isScrollControlled: true);
         },
       ),
     );
-    // CustomKeyboardWidget(
-    //   onEnter: (value) {},
-    //   onBackSpace: () {},
-    //   onDone: () {},
-    // )
-    // KeyboardDemo()
-    // ColorPicker(
-    //   currentColor: colorWhite,
-    //   onDone: (color) {
-    //     // set color
-    //   },
-    //   listColorSaved: ALL_COLORS,
-    //   onColorSave: (Color color) {},
-    // )
   }
 }
