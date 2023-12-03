@@ -3,6 +3,7 @@ import 'package:color_picker_fix/commons/constant.dart';
 import 'package:color_picker_fix/helpers/navigator_route.dart';
 import 'package:color_picker_fix/screens/color_picker_1.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(const MyApp());
@@ -54,7 +55,13 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       body: Container(color: _currentColor),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
+        onPressed: () async {
+          // Obtain shared preferences.
+          final SharedPreferences prefs = await SharedPreferences.getInstance();
+          List<String>? listColorsString =
+              prefs.getStringList("colors_saved")??[];
+              // convert List<String> to List<Color>
+          List<Color> listSavedColor = listColorsString.map((e) => Color(int.parse(e))).toList();
           showModalBottomSheet(
               context: context,
               builder: (ctx) {
@@ -70,10 +77,21 @@ class _MyHomePageState extends State<MyHomePage> {
                       popNavigator(context);
                     },
                     listColorSaved: ALL_COLORS,
-                    onColorSave: (Color color) {},
+                    onColorSave: (Color color) async{
+                       final SharedPreferences prefs = await SharedPreferences.getInstance();
+                       List<String> listColorString = prefs.getStringList("saved_color")??[];
+                       List<Color> listSavedColor = listColorString.map((e) => Color(int.parse(e))).toList();
+                       // kiem tra xem co mau do trong list chua
+                       if(listSavedColor.contains(color)){
+                        // rerender list save color
+                       }else{
+                        // add vao dau danh sach save color
+                       }
+                       // update prefs
+                    },
                   );
                 });
-              }, 
+              },
               isScrollControlled: true);
         },
       ),

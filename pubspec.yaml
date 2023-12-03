@@ -38,6 +38,7 @@ dependencies:
   custom_sliding_segmented_control: ^1.8.1
   keyboard_actions: ^4.2.0
   font_awesome_flutter: ^10.6.0
+  shared_preferences: ^2.2.2
 
 
 dev_dependencies:
